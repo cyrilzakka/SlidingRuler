@@ -30,9 +30,16 @@ import SwiftUI
 
 public struct NativeCursorBody: View {
     public var body: some View {
+#if canImport(UIKit)
         Capsule()
             .foregroundColor(.red)
             .frame(width: UIScreen.main.scale == 3 ? 1.8 : 2, height: 30)
+#elseif canImport(AppKit)
+        Capsule()
+            .foregroundColor(.red)
+            .frame(width: NSScreen.main?.backingScaleFactor == 1 ? 1.8 : 2, height: 30)
+#endif
+        
     }
 }
 

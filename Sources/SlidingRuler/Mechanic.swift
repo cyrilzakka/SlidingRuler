@@ -26,42 +26,83 @@
 //  SOFTWARE.
 //
 
-import UIKit.UIScrollView
+#if canImport(UIKit)
+import UIKit
+typealias ScrollView = UIScrollView
+#elseif canImport(AppKit)
+import AppKit
+typealias ScrollView = NSScrollView
+#endif
 import CoreGraphics
 
-enum Mechanic {
 
+enum Mechanic {
+    
+#if canImport(UIKit)
     enum Inertia {
         private static let epsilon: CGFloat = 0.6
 
         /// Velocity at time `t` of the initial velocity `v0` decelerated by the given deceleration rate.
-        static func velocity(atTime t: TimeInterval, v0: CGFloat, decelerationRate rate: UIScrollView.DecelerationRate) -> CGFloat {
+        static func velocity(atTime t: TimeInterval, v0: CGFloat, decelerationRate rate: ScrollView.DecelerationRate) -> CGFloat {
             v0 * pow(rate.rawValue, (1000 * CGFloat(t)))
         }
 
         /// Travelled distance at time `t` for the initial velocity `v0` decelerated by the given deceleration rate.
-        static func distance(atTime t: TimeInterval, v0: CGFloat, decelerationRate rate: UIScrollView.DecelerationRate) -> CGFloat {
+        static func distance(atTime t: TimeInterval, v0: CGFloat, decelerationRate rate: ScrollView.DecelerationRate) -> CGFloat {
             v0 * (pow(rate.rawValue, 1000 * CGFloat(t)) - 1) / (coef(rate))
         }
 
         /// Total distance travelled for he initial velocity `v0` decelerated by the given deceleration rate before being completely still.
-        static func totalDistance(forVelocity v0: CGFloat, decelerationRate rate: UIScrollView.DecelerationRate) -> CGFloat {
+        static func totalDistance(forVelocity v0: CGFloat, decelerationRate rate: ScrollView.DecelerationRate) -> CGFloat {
             distance(atTime: duration(forVelocity: v0, decelerationRate: rate), v0: v0, decelerationRate: rate)
         }
 
         /// Total time ellapsed before the motion become completely still for the initial velocity `v0` decelerated by the given deceleration rate.
-        static func duration(forVelocity v0: CGFloat, decelerationRate rate: UIScrollView.DecelerationRate) -> TimeInterval {
+        static func duration(forVelocity v0: CGFloat, decelerationRate rate: ScrollView.DecelerationRate) -> TimeInterval {
             TimeInterval((log((-1000 * epsilon * log(rate.rawValue)) / abs(v0))) / coef(rate))
         }
 
-        static func time(toReachDistance x: CGFloat, forVelocity v0: CGFloat, decelerationRate rate: UIScrollView.DecelerationRate) -> TimeInterval {
+        static func time(toReachDistance x: CGFloat, forVelocity v0: CGFloat, decelerationRate rate: ScrollView.DecelerationRate) -> TimeInterval {
             TimeInterval(log(1 + coef(rate) * x / v0) / coef(rate))
         }
 
-        static func coef(_ rate: UIScrollView.DecelerationRate) -> CGFloat {
+        static func coef(_ rate: ScrollView.DecelerationRate) -> CGFloat {
             1000 * log(rate.rawValue)
         }
     }
+#elseif canImport(AppKit)
+    enum Inertia {
+        private static let epsilon: CGFloat = 0.6
+
+        /// Velocity at time `t` of the initial velocity `v0` decelerated by the given deceleration rate.
+        static func velocity(atTime t: TimeInterval, v0: CGFloat, decelerationRate rate: CGFloat) -> CGFloat {
+            v0 * pow(rate, (1000 * CGFloat(t)))
+        }
+
+        /// Travelled distance at time `t` for the initial velocity `v0` decelerated by the given deceleration rate.
+        static func distance(atTime t: TimeInterval, v0: CGFloat, decelerationRate rate: CGFloat) -> CGFloat {
+            v0 * (pow(rate, 1000 * CGFloat(t)) - 1) / (coef(rate))
+        }
+
+        /// Total distance travelled for he initial velocity `v0` decelerated by the given deceleration rate before being completely still.
+        static func totalDistance(forVelocity v0: CGFloat, decelerationRate rate: CGFloat) -> CGFloat {
+            distance(atTime: duration(forVelocity: v0, decelerationRate: rate), v0: v0, decelerationRate: rate)
+        }
+
+        /// Total time ellapsed before the motion become completely still for the initial velocity `v0` decelerated by the given deceleration rate.
+        static func duration(forVelocity v0: CGFloat, decelerationRate rate: CGFloat) -> TimeInterval {
+            TimeInterval((log((-1000 * epsilon * log(rate)) / abs(v0))) / coef(rate))
+        }
+
+        static func time(toReachDistance x: CGFloat, forVelocity v0: CGFloat, decelerationRate rate: CGFloat) -> TimeInterval {
+            TimeInterval(log(1 + coef(rate) * x / v0) / coef(rate))
+        }
+
+        static func coef(_ rate: CGFloat) -> CGFloat {
+            1000 * log(rate)
+        }
+    }
+#endif
 
     enum Spring {
         private static var e: CGFloat { CGFloat(M_E) }

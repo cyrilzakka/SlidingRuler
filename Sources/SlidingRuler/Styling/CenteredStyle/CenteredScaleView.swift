@@ -32,7 +32,15 @@ import SwiftUI
 struct CenteredScaleView: ScaleView {
     struct ScaleShape: Shape {
         fileprivate var unitMarkSize: CGSize { .init(width: 3.0, height: 27.0)}
+#if canImport(UIKit)
         fileprivate var halfMarkSize: CGSize { .init(width: UIScreen.main.scale == 3 ? 1.8 : 2.0, height: 19.0) }
+#elseif canImport(AppKit)
+        fileprivate var halfMarkSize: CGSize {
+            let scale = NSScreen.main?.backingScaleFactor ?? 1
+            return CGSize(width: scale >= 3 ? 1.8 : 2.0, height: 19.0)
+        }
+#endif
+        
         fileprivate var fractionMarkSize: CGSize { .init(width: 1.0, height: 11.0)}
 
         func path(in rect: CGRect) -> Path {

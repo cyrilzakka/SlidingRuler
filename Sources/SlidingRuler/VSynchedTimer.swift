@@ -26,19 +26,26 @@
 //  SOFTWARE.
 //
 
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+import CoreVideo
+#endif
 
 struct VSynchedTimer {
     typealias Animations = (TimeInterval, TimeInterval) -> ()
     typealias Completion = (Bool) -> ()
-
+    
     private let timer: SynchedTimer
     
     init(duration: TimeInterval, animations: @escaping Animations, completion: Completion? = nil) {
         self.timer = .init(duration, animations, completion)
     }
-
-    func cancel() { timer.cancel() }
+    
+    func cancel() {
+        timer.cancel()
+    }
 }
 
 
@@ -46,14 +53,18 @@ private final class SynchedTimer {
     private let duration: TimeInterval
     private let animationBlock: VSynchedTimer.Animations
     private let completionBlock: VSynchedTimer.Completion?
+#if canImport(UIKit)
     private weak var displayLink: CADisplayLink?
+#elseif canImport(AppKit)
+    private var displayLink: CVDisplayLink?
+#endif
     
     private var isRunning: Bool
     private let startTimeStamp: TimeInterval
     private var lastTimeStamp: TimeInterval
     
     deinit {
-        self.displayLink?.invalidate()
+        cancel()
     }
     
     init(_ duration: TimeInterval, _ animations: @escaping VSynchedTimer.Animations, _ completion: VSynchedTimer.Completion? = nil) {
@@ -69,28 +80,36 @@ private final class SynchedTimer {
     
     func cancel() {
         guard isRunning else { return }
-
+        
         isRunning.toggle()
+#if canImport(UIKit)
         displayLink?.invalidate()
+#elseif canImport(AppKit)
+        CVDisplayLinkStop(displayLink!)
+#endif
         self.completionBlock?(false)
     }
-
+    
     private func complete() {
         guard isRunning else { return }
-
+        
         isRunning.toggle()
+#if canImport(UIKit)
         displayLink?.invalidate()
+#elseif canImport(AppKit)
+        CVDisplayLinkStop(displayLink!)
+#endif
         self.completionBlock?(true)
     }
     
     @objc private func displayLinkTick(_ displayLink: CADisplayLink) {
         guard isRunning else { return }
-
+        
         let currentTimeStamp = CACurrentMediaTime()
         let progress = currentTimeStamp - startTimeStamp
         let elapsed = currentTimeStamp - lastTimeStamp
         lastTimeStamp = currentTimeStamp
-
+        
         if progress < duration {
             animationBlock(progress, elapsed)
         } else {
@@ -98,10 +117,44 @@ private final class SynchedTimer {
         }
     }
     
+#if canImport(UIKit)
     private func createDisplayLink() -> CADisplayLink {
         let dl = CADisplayLink(target: self, selector: #selector(displayLinkTick(_:)))
         dl.add(to: .main, forMode: .common)
         
         return dl
     }
+#elseif canImport(AppKit)
+    private func createDisplayLink() -> CVDisplayLink? {
+        var cvDisplayLink: CVDisplayLink?
+        CVDisplayLinkCreateWithActiveCGDisplays(&cvDisplayLink)
+        guard let displayLink = cvDisplayLink else { return nil }
+        
+        CVDisplayLinkSetOutputCallback(displayLink, { (displayLink, inNow, inOutputTime, flagsIn, flagsOut, userInfo) -> CVReturn in
+            guard let context = userInfo else { return kCVReturnError }
+            let synchedTimer = Unmanaged<SynchedTimer>.fromOpaque(context).takeUnretainedValue()
+            synchedTimer.displayLinkTick()
+            return kCVReturnSuccess
+        }, Unmanaged.passUnretained(self).toOpaque())
+        
+        CVDisplayLinkStart(displayLink)
+        return displayLink
+    }
+    
+    @objc private func displayLinkTick() {
+        guard isRunning else { return }
+        
+        let currentTimeStamp = CACurrentMediaTime()
+        let progress = currentTimeStamp - startTimeStamp
+        let elapsed = currentTimeStamp - lastTimeStamp
+        lastTimeStamp = currentTimeStamp
+        
+        if progress < duration {
+            animationBlock(progress, elapsed)
+        } else {
+            complete()
+        }
+    }
+#endif
+    
 }

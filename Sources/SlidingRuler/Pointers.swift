@@ -27,11 +27,74 @@
 //
 
 
-import UIKit.UIBezierPath
+#if canImport(UIKit)
+import UIKit
+typealias BezierPath = UIBezierPath
+#elseif canImport(AppKit)
+import AppKit
+typealias BezierPath = NSBezierPath
+#endif
+
+#if os(OSX)
+import AppKit
+
+public extension NSBezierPath {
+    
+    var cgPath: CGPath {
+        get {
+            let path = CGMutablePath()
+            let points = NSPointArray.allocate(capacity: 3)
+            
+            for i in 0 ..< self.elementCount {
+                let type = self.element(at: i, associatedPoints: points)
+                switch type {
+                case .moveTo:
+                    path.move(to: points[0])
+                case .lineTo:
+                    path.addLine(to: points[0])
+                case .curveTo:
+                    path.addCurve(to: points[2], control1: points[0], control2: points[1])
+                case .closePath:
+                    path.closeSubpath()
+                case .cubicCurveTo:
+                    fatalError("Encountered an unknown element type in NSBezierPath")
+                case .quadraticCurveTo:
+                    // TODO: Complete
+                    fatalError("Encountered an unknown element type in NSBezierPath")
+                @unknown default:
+                    fatalError("Encountered an unknown element type in NSBezierPath")
+                }
+            }
+            return path
+        }
+    }
+    
+    func addLine(to point: NSPoint) {
+        self.line(to: point)
+    }
+    
+    func addCurve(to point: NSPoint, controlPoint1: NSPoint, controlPoint2: NSPoint) {
+        self.curve(to: point, controlPoint1: controlPoint1, controlPoint2: controlPoint2)
+    }
+    
+    func addQuadCurve(to point: NSPoint, controlPoint: NSPoint) {
+        self.curve(to: point,
+                   controlPoint1: NSPoint(
+                    x: (controlPoint.x - self.currentPoint.x) * (2.0 / 3.0) + self.currentPoint.x,
+                    y: (controlPoint.y - self.currentPoint.y) * (2.0 / 3.0) + self.currentPoint.y),
+                   controlPoint2: NSPoint(
+                    x: (controlPoint.x - point.x) * (2.0 / 3.0) +  point.x,
+                    y: (controlPoint.y - point.y) * (2.0 / 3.0) +  point.y))
+    }
+    
+    
+    
+}
+#endif
 
 enum Pointers {
-    static var standard: UIBezierPath {
-        let path = UIBezierPath()
+    static var standard: BezierPath {
+        let path = BezierPath()
 
         path.move(to: CGPoint(x: 18.78348, y: 1.134168))
         path.addCurve(to: CGPoint(x: 19, y: 2.051366), controlPoint1: CGPoint(x: 18.925869, y: 1.418949), controlPoint2: CGPoint(x: 19, y: 1.732971))
@@ -65,7 +128,11 @@ enum Pointers {
         path.addCurve(to: CGPoint(x: 24.5, y: 6), controlPoint1: CGPoint(x: 21, y: 7.567003), controlPoint2: CGPoint(x: 22.567003, y: 6))
         path.close()
 
+#if canImport(UIKit)
         path.apply(.init(translationX: -24.5, y: 0))
+#elseif canImport(AppKit)
+        path.transform(using: AffineTransform(translationByX: -24.5, byY: 0))
+#endif
 
         return path
     }

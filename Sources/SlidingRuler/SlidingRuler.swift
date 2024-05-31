@@ -30,7 +30,7 @@
 import SwiftUI
 import SmoothOperators
 
-@available(iOS 13.0, *)
+
 public struct SlidingRuler<V>: View where V: BinaryFloatingPoint, V.Stride: BinaryFloatingPoint {
 
     @Environment(\.slidingRulerCellOverflow) private var cellOverflow
@@ -155,6 +155,7 @@ public struct SlidingRuler<V>: View where V: BinaryFloatingPoint, V.Stride: Bina
                 self.style.makeCursorBody()
             }
         }
+
         .modifier(InfiniteMarkOffsetModifier(renderedValue, step: step))
         .propagateWidth(ControlWidthPreferenceKey.self)
         .onPreferenceChange(MarkOffsetPreferenceKey.self, storeValueIn: $markOffset)
@@ -197,7 +198,6 @@ public struct SlidingRuler<V>: View where V: BinaryFloatingPoint, V.Stride: Bina
             value = clampedValue ?? 0
             offset = self.offset(fromValue: value)
         }
-
         return (value, offset)
     }
 }
@@ -233,6 +233,7 @@ extension SlidingRuler {
 
     /// Composite callback passed to the horizontal drag gesture recognizer.
     private func horizontalDragAction(withValue value: HorizontalDragGestureValue) {
+        print(value)
         switch value.state {
         case .began: horizontalDragBegan(value)
         case .changed: horizontalDragChanged(value)
@@ -378,9 +379,11 @@ extension SlidingRuler {
     }
 }
 
+#if canImport(UIKit)
 extension UIScrollView.DecelerationRate {
     static var ruler: Self { Self.init(rawValue: 0.9972) }
 }
+#endif
 
 // MARK: Mechanic Simulation
 extension SlidingRuler {
@@ -400,7 +403,11 @@ extension SlidingRuler {
 
         referenceOffset = dragOffset
 
+        #if canImport(AppKit)
+        let rate = 0.9972
+        #else
         let rate = UIScrollView.DecelerationRate.ruler
+        #endif
         let totalDistance = Mechanic.Inertia.totalDistance(forVelocity: initialVelocity, decelerationRate: rate)
         let finalOffset = self.referenceOffset + .init(horizontal: totalDistance)
 
@@ -510,8 +517,10 @@ extension SlidingRuler {
 // MARK: Tick Management
 extension SlidingRuler {
     private func boundaryMet() {
+#if canImport(UIKit)
         let fg = UIImpactFeedbackGenerator(style: .rigid)
         fg.impactOccurred(intensity: 0.667)
+#endif
     }
 
     private func tickIfNeeded(_ offset0: CGSize, _ offset1: CGSize) {
@@ -537,8 +546,10 @@ extension SlidingRuler {
     }
     
     private func valueTick() {
+#if canImport(UIKit)
         let fg = UIImpactFeedbackGenerator(style: .light)
         fg.impactOccurred(intensity: 0.5)
+#endif
     }
 }
 

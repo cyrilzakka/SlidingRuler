@@ -31,9 +31,15 @@ import SwiftUI
 
 protocol NativeMarkedRulerCellView: MarkedRulerCellView { }
 extension NativeMarkedRulerCellView {
+#if canImport(UIKit)
     var markColor: Color {
         bounds.contains(mark) ? .init(.label) : .init(.tertiaryLabel)
     }
+#elseif canImport(AppKit)
+    var markColor: Color {
+        return .primary
+    }
+#endif
     var displayMark: String { numberFormatter?.string(for: mark) ?? "\(mark.approximated())" }
 
     var body: some View {
