@@ -81,6 +81,7 @@ public struct SlidingRuler<V>: View where V: BinaryFloatingPoint, V.Stride: Bina
     @State private var lastValueSet: CGFloat = .zero
     
     /// The SwiftUI view that detects the scroll wheel movement.
+    #if canImport(AppKit)
     var scrollView: some View {
         RepresentableScrollView()
             .onScroll(
@@ -88,15 +89,14 @@ public struct SlidingRuler<V>: View where V: BinaryFloatingPoint, V.Stride: Bina
                     horizontalScrollChanged(offset: CGSize(width: event.scrollingDeltaX, height: 0))
                 },
                 onBegan: { event in
-                    
                     horizontalScrollBegan()
                 },
                 onEnded: { event in
-                    
-                    horizontalScrollEnded()
+                    horizontalScrollEnded(event: event)
                 }
             )
     }
+    #endif
     
     /// VSynch timer that drives animations.
     @State private var animationTimer: VSynchedTimer? = nil
@@ -159,6 +159,7 @@ public struct SlidingRuler<V>: View where V: BinaryFloatingPoint, V.Stride: Bina
     
     // MARK: Rendering
     
+    #if canImport(UIKit)
     public var body: some View {
         let renderedValue: CGFloat, renderedOffset: CGSize
         
@@ -168,7 +169,36 @@ public struct SlidingRuler<V>: View where V: BinaryFloatingPoint, V.Stride: Bina
             ZStack(alignment: .init(horizontal: .center, vertical: self.verticalCursorAlignment)) {
                 Ruler(cells: self.cells, step: self.step, markOffset: self.markOffset, bounds: self.bounds, formatter: self.formatter)
                     .equatable()
-//                    .animation(nil)
+                    .animation(nil)
+                    .modifier(InfiniteOffsetEffect(offset: renderedOffset, maxOffset: self.cellWidthOverflow))
+                self.style.makeCursorBody()
+            }
+        }
+        
+        .modifier(InfiniteMarkOffsetModifier(renderedValue, step: step))
+        .propagateWidth(ControlWidthPreferenceKey.self)
+        .onPreferenceChange(MarkOffsetPreferenceKey.self, storeValueIn: $markOffset)
+        .onPreferenceChange(ControlWidthPreferenceKey.self, storeValueIn: $controlWidth) {
+            self.updateCellsIfNeeded()
+        }
+        .transaction {
+            if $0.animation != nil { $0.animation = .easeIn(duration: 0.1) }
+        }
+        .onHorizontalDragGesture(initialTouch: firstTouchHappened,
+                                 prematureEnd: panGestureEndedPrematurely,
+                                 perform: horizontalDragAction(withValue:))
+    }
+    #else
+    public var body: some View {
+        let renderedValue: CGFloat, renderedOffset: CGSize
+        
+        (renderedValue, renderedOffset) = renderingValues()
+        
+        return FlexibleWidthContainer {
+            ZStack(alignment: .init(horizontal: .center, vertical: self.verticalCursorAlignment)) {
+                Ruler(cells: self.cells, step: self.step, markOffset: self.markOffset, bounds: self.bounds, formatter: self.formatter)
+                    .equatable()
+                    .animation(nil)
                     .modifier(InfiniteOffsetEffect(offset: renderedOffset, maxOffset: self.cellWidthOverflow))
                 self.style.makeCursorBody()
             }
@@ -184,10 +214,10 @@ public struct SlidingRuler<V>: View where V: BinaryFloatingPoint, V.Stride: Bina
             if $0.animation != nil { $0.animation = .easeIn(duration: 0.1) }
         }
         .overlay(scrollView)
-        //        .onHorizontalDragGesture(initialTouch: firstTouchHappened,
-        //                                 prematureEnd: panGestureEndedPrematurely,
-        //                                 perform: horizontalDragAction(withValue:))
     }
+    #endif
+    
+    
     
     private func renderingValues() -> (CGFloat, CGSize) {
         let value: CGFloat
@@ -313,7 +343,6 @@ extension SlidingRuler {
         referenceOffset = dragOffset
         let newOffset = self.directionalOffset(offset.horizontal + referenceOffset)
         let newValue = self.value(fromOffset: newOffset)
-        print(newValue)
         
         self.tickIfNeeded(dragOffset, newOffset)
         
@@ -324,8 +353,8 @@ extension SlidingRuler {
 
     }
     
-    private func horizontalScrollEnded() {
-        var velocity = 70.0 // TODO: Calculate somehow
+    private func horizontalScrollEnded(event: NSEvent) {
+        var velocity = event.scrollingDeltaX
         if isRubberBandNeedingRelease {
             self.releaseRubberBand()
             self.endDragSession()
