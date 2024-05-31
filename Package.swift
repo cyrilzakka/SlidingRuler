@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "SlidingRuler",
-    platforms: [.iOS(.v13),
+    platforms: [.iOS(.v15),
                 .macOS(.v14),
                ],
     products: [
